@@ -81,7 +81,6 @@ public class FsActivity extends AppCompatActivity implements
 
     private boolean allowMultipleFiles;
 
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);

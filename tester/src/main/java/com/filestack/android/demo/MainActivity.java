@@ -17,11 +17,13 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.filestack.Config;
+import com.filestack.android.FilestackPicker;
 import com.filestack.android.FsActivity;
 import com.filestack.android.FsConstants;
 import com.filestack.android.Selection;
 import com.filestack.android.internal.Util;
 
+import java.io.File;
 import java.sql.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -55,10 +57,8 @@ public class MainActivity extends AppCompatActivity {
 
         super.onActivityResult(requestCode, resultCode, data);
 
-        if (requestCode == REQUEST_FILESTACK && resultCode == RESULT_OK) {
-            Log.i(TAG, "received filestack selections");
-            String key = FsConstants.EXTRA_SELECTION_LIST;
-            ArrayList<Selection> selections = data.getParcelableArrayListExtra(key);
+        if (FilestackPicker.canHandleResult(requestCode, resultCode)) {
+            List<Selection> selections = FilestackPicker.unpackResults(data);
             for (int i = 0; i < selections.size(); i++) {
                 Selection selection = selections.get(i);
                 String msg = String.format(locale, "selection %d: %s", i, selection.getName());
@@ -73,32 +73,31 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void launch(View view) {
-        Intent intent = new Intent(this, FsActivity.class);
         SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
-
         Set<String> sources = sharedPref.getStringSet("upload_sources", null);
-        intent.putExtra(FsConstants.EXTRA_SOURCES, new ArrayList<>(sources));
-
         boolean autoUpload = sharedPref.getBoolean("auto_upload", false);
-        intent.putExtra(FsConstants.EXTRA_AUTO_UPLOAD, autoUpload);
-
+        boolean multipleFilePick = sharedPref.getBoolean("multiple_file_pick", true);
         String mimeFilter = sharedPref.getString("mime_filter", null);
         String[] mimeTypes = mimeFilter.split(",");
-        intent.putExtra(FsConstants.EXTRA_MIME_TYPES, mimeTypes);
-
         String apiKey = sharedPref.getString("api_key", null);
         String policy = sharedPref.getString("policy", null);
         String signature = sharedPref.getString("signature", null);
-
         if (apiKey == null) {
             Toast.makeText(this, R.string.error_no_api_key, Toast.LENGTH_SHORT).show();
             return;
         }
-
         Config config = new Config(apiKey, getString(R.string.return_url), policy, signature);
-        intent.putExtra(FsConstants.EXTRA_CONFIG, config);
-        intent.putExtra(FsConstants.EXTRA_ALLOW_MULTIPLE_FILES, false);
 
-        startActivityForResult(intent, REQUEST_FILESTACK);
+
+        FilestackPicker filestackPicker =
+                new FilestackPicker.Builder()
+                        .config(config)
+                .allowMultipleFiles(multipleFilePick)
+                .autoUpload(autoUpload)
+                .mimeTypes(Arrays.asList(mimeTypes))
+                .sources(new ArrayList<>(sources))
+                .build();
+
+        filestackPicker.show(this);
     }
 }
